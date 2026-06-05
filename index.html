@@ -49,10 +49,40 @@
   .kpi .val { font-size: 26px; font-weight: 600; line-height: 1; }
   .kpi .sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
   
-  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
-  @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
-  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; min-height: 280px; }
-  .card h3 { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 14px; }
+  .charts-row { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 14px; 
+    margin-bottom: 20px; 
+  }
+  @media (max-width: 768px) { 
+    .charts-row { grid-template-columns: 1fr; } 
+  }
+  
+  /* Contenedor Protegido contra bucles infinitos de Chart.js */
+  .card { 
+    background: var(--bg); 
+    border: 0.5px solid var(--border); 
+    border-radius: var(--radius-lg); 
+    padding: 16px 18px; 
+    position: relative; 
+    height: 340px; 
+    display: flex;
+    flex-direction: column;
+  }
+  .card h3 { 
+    font-size: 13px; 
+    font-weight: 500; 
+    color: var(--text); 
+    margin-bottom: 14px; 
+    flex: 0 0 auto;
+  }
+  .chart-container {
+    position: relative;
+    flex: 1 1 auto;
+    height: 100%;
+    width: 100%;
+  }
   
   .dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
   .dim-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
@@ -78,6 +108,7 @@
   .ai-col.improvements .ai-col-title { color: #8a6000; }
   .ai-item { font-size: 13px; color: var(--text); padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06); line-height: 1.5; }
   .ai-item:last-child { border-bottom: none; }
+  .ai-placeholder { font-size: 13px; color: var(--text3); font-style: italic; }
   
   .loading-wrap { text-align: center; padding: 60px 20px; color: var(--text2); }
   .spinner { display: inline-flex; gap: 6px; margin-top: 10px; }
@@ -175,7 +206,7 @@ const DIM_COLS = {
 let allRows = [];
 let charts = {};
 
-// Robust CSV Parser que soporta comas anidadas dentro de comillas
+// Robust CSV Parser (Previene rupturas por comas internas)
 function parseCSV(text) {
   const lines = [];
   let row = [""];
@@ -384,7 +415,7 @@ function renderDashboard() {
     return;
   }
 
-  // Cálculos de KPIs Clave Exactos
+  // Cálculos de KPIs Clave Exactos (Matemática NPS Real)
   const npsRows = data.filter(r => r.nps !== null);
   let npsText = "—";
   if (npsRows.length) {
@@ -400,7 +431,7 @@ function renderDashboard() {
   const volRows = data.filter(r => r.volveria !== null);
   const pctVol = volRows.length ? Math.round((volRows.filter(r => r.volveria).length / volRows.length) * 100) : "—";
 
-  // Generación Estructura HTML Base del Dashboard
+  // Inyección HTML del Dashboard Seguro
   let html = `
     <div class="kpi-grid">
       <div class="kpi">
@@ -411,12 +442,12 @@ function renderDashboard() {
       <div class="kpi accent">
         <div class="lbl">Métrica Global NPS</div>
         <div class="val">${npsText}</div>
-        <div class="sub">Fórmula Matemática Oficial</div>
+        <div class="sub">Promotores vs Detractores</div>
       </div>
       <div class="kpi">
         <div class="lbl">Satisfacción General</div>
         <div class="val">${avgSat} / 5.00</div>
-        <div class="sub">Media de escala Likert</div>
+        <div class="sub">Media Likert</div>
       </div>
       <div class="kpi">
         <div class="lbl">% Volvería a participar</div>
@@ -426,15 +457,25 @@ function renderDashboard() {
     </div>
 
     <div class="charts-row">
-      <div class="card"><h3 style="text-align:center">Distribución de Satisfacción</h3><canvas id="chartSat"></canvas></div>
-      <div class="card"><h3 style="text-align:center">Volumen por Instancia</h3><canvas id="chartInst"></canvas></div>
+      <div class="card">
+        <h3 style="text-align:center">Distribución de Satisfacción</h3>
+        <div class="chart-container">
+          <canvas id="chartSat"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="text-align:center">Volumen por Instancia</h3>
+        <div class="chart-container">
+          <canvas id="chartInst"></canvas>
+        </div>
+      </div>
     </div>
 
     <h2 class="section-title">Análisis de Atributos Específicos</h2>
     <div class="dims-grid">
   `;
 
-  // Renderizado Dinámico de Dimensiones por Instancia activa
+  // Atributos dinámicos por pestaña activa
   const instanciasActivas = [...new Set(data.map(r => r.instancia))];
   instanciasActivas.forEach(inst => {
     const configDims = DIM_COLS[inst] || [];
@@ -490,7 +531,7 @@ function renderDashboard() {
 
   container.innerHTML = html;
 
-  // Renderizado Seguro de Gráficos de Chart.js
+  // Renderizado gráfico con Chart.js seguro
   const satCounts = [0, 0, 0, 0, 0];
   data.forEach(r => { if (r.sat >= 1 && r.sat <= 5) satCounts[r.sat - 1]++; });
 
@@ -524,12 +565,11 @@ function runTextAnalysis() {
   const comments = data.map(r => r.mejora).filter(c => c && c.trim().length > 5);
 
   if (!comments.length) {
-    document.getElementById('aiStrengths').innerHTML = '<div class="ai-item">Sin comentarios suficientes en esta vista.</div>';
-    document.getElementById('aiImprovements').innerHTML = '<div class="ai-item">Sin comentarios suficientes en esta vista.</div>';
+    document.getElementById('aiStrengths').innerHTML = '<div class="ai-placeholder">Sin comentarios suficientes en esta vista.</div>';
+    document.getElementById('aiImprovements').innerHTML = '<div class="ai-placeholder">Sin comentarios suficientes en esta vista.</div>';
     return;
   }
 
-  // Algoritmo Heurístico de Clasificación Semántica Seguro
   const positivas = [];
   const mejoras = [];
 
@@ -543,13 +583,12 @@ function runTextAnalysis() {
     }
   });
 
-  const buildList = (arr) => arr.length ? arr.slice(0, 4).map(t => `<div class="ai-item">“${t}”</div>`).join('') : '<div class="ai-item">Sin comentarios registrados.</div>';
+  const buildList = (arr) => arr.length ? arr.slice(0, 4).map(t => `<div class="ai-item">“${t}”</div>`).join('') : '<div class="ai-placeholder">Sin comentarios registrados.</div>';
 
   document.getElementById('aiStrengths').innerHTML = buildList(positivas);
   document.getElementById('aiImprovements').innerHTML = buildList(mejoras);
 }
 
-// Inicialización Automática al cargar el Documento DOM
 document.addEventListener("DOMContentLoaded", () => {
   loadAll();
 });
