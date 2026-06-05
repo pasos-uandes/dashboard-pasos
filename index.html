@@ -153,6 +153,9 @@
       <div id="colegioMenu" class="multi-select-menu" style="display:none">
         <label class="ms-item"><input type="checkbox" id="ms-all" onchange="toggleAll(this)"> <em>Todos los colegios</em></label>
         <div id="ms-list"></div>
+        <div style="padding:8px 14px;border-top:0.5px solid var(--border);margin-top:4px">
+          <button onclick="applyColegioFilter()" style="width:100%;padding:7px;border-radius:var(--radius);border:none;background:#25AFC4;color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">Aplicar filtro</button>
+        </div>
       </div>
     </div>
     <div class="fgroup">
@@ -636,7 +639,7 @@ function populateFilters() {
   colegios.forEach(c => {
     const lbl = document.createElement('label');
     lbl.className = 'ms-item';
-    lbl.innerHTML = '<input type="checkbox" value="' + c.replace(/"/g,'&quot;') + '" onchange="updateColegioLabel(); render();"> ' + c;
+    lbl.innerHTML = '<input type="checkbox" value="' + c.replace(/"/g,'&quot;') + '" onchange="updateColegioLabel();"> ' + c;
     list.appendChild(lbl);
   });
   document.getElementById('ms-all').checked = true;
@@ -659,15 +662,25 @@ function toggleColegioMenu(e) {
   e.stopPropagation();
 }
 
-document.addEventListener('click', function() {
-  const menu = document.getElementById('colegioMenu');
-  if (menu) menu.style.display = 'none';
+function applyColegioFilter() {
+  document.getElementById('colegioMenu').style.display = 'none';
+  render();
+}
+
+document.addEventListener('click', function(e) {
+  var dropdown = document.getElementById('colegioDropdown');
+  var menu = document.getElementById('colegioMenu');
+  if (menu && dropdown && !dropdown.parentElement.contains(e.target)) {
+    if (menu.style.display !== 'none') {
+      menu.style.display = 'none';
+      render();
+    }
+  }
 });
 
 function toggleAll(cb) {
   document.querySelectorAll('#ms-list input[type=checkbox]').forEach(c => c.checked = cb.checked);
   updateColegioLabel();
-  render();
 }
 
 function getSelectedColegios() {
