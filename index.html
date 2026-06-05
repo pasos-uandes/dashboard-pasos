@@ -261,8 +261,8 @@ function parseNPS(v) {
 function parseSat(v) {
   if (!v) return null;
   const s = String(v).replace(/^\d\.\s*/,'').toLowerCase();
-  // Order matters: check longer/more specific phrases first
-  // to avoid 'de acuerdo' matching inside 'ni de acuerdo ni en desacuerdo'
+  // Check longer phrases first to avoid substring false matches
+  // e.g. 'de acuerdo' must not match inside 'ni de acuerdo ni en desacuerdo'
   if (s.includes('ni de acuerdo ni en desacuerdo')) return 3;
   if (s.includes('muy de acuerdo')) return 5;
   if (s.includes('muy en desacuerdo')) return 1;
@@ -419,19 +419,12 @@ function debugDims() {
       rows2.push({ inst: tab.name, dim: dim.label, type: dim.type, n: vals.length, total: tabRows.length, d1: dist[0], d2: dist[1], d3: dist[2], d4: dist[3], d5: dist[4], result: result });
     });
   });
-  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
-  tableHTML += '<tr style="background:#25AFC4;color:#fff"><th style="padding:6px 8px;text-align:left">Instancia</th><th style="padding:6px 8px;text-align:left">Dimension</th><th style="padding:6px 8px">Tipo</th><th style="padding:6px 8px">n resp.</th><th style="padding:6px 8px">n total</th><th style="padding:6px 8px">1</th><th style="padding:6px 8px">2</th><th style="padding:6px 8px">3</th><th style="padding:6px 8px">4</th><th style="padding:6px 8px">5</th><th style="padding:6px 8px">Resultado</th></tr>';
+  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#25AFC4;color:#fff"><th style="padding:6px 8px;text-align:left">Instancia</th><th style="padding:6px 8px;text-align:left">Dimension</th><th style="padding:6px 8px">Tipo</th><th style="padding:6px 8px">n</th><th style="padding:6px 8px">total</th><th style="padding:6px 8px">1</th><th style="padding:6px 8px">2</th><th style="padding:6px 8px">3</th><th style="padding:6px 8px">4</th><th style="padding:6px 8px">5</th><th style="padding:6px 8px">Resultado</th></tr>';
   rows2.forEach(function(row, i) {
     var bg = i % 2 === 0 ? '#fff' : '#f7f7f5';
-    tableHTML += '<tr style="background:' + bg + '">';
-    tableHTML += '<td style="padding:5px 8px;font-weight:500">' + row.inst + '</td>';
-    tableHTML += '<td style="padding:5px 8px">' + row.dim + '</td>';
-    tableHTML += '<td style="padding:5px 8px;text-align:center">' + row.type + '</td>';
-    tableHTML += '<td style="padding:5px 8px;text-align:center">' + row.n + '</td>';
-    tableHTML += '<td style="padding:5px 8px;text-align:center">' + row.total + '</td>';
+    tableHTML += '<tr style="background:' + bg + '"><td style="padding:5px 8px;font-weight:500">' + row.inst + '</td><td style="padding:5px 8px">' + row.dim + '</td><td style="padding:5px 8px;text-align:center">' + row.type + '</td><td style="padding:5px 8px;text-align:center">' + row.n + '</td><td style="padding:5px 8px;text-align:center">' + row.total + '</td>';
     [row.d1,row.d2,row.d3,row.d4,row.d5].forEach(function(d){ tableHTML += '<td style="padding:5px 8px;text-align:center">' + d + '</td>'; });
-    tableHTML += '<td style="padding:5px 8px;text-align:center;font-weight:600;color:#25AFC4">' + row.result + '</td>';
-    tableHTML += '</tr>';
+    tableHTML += '<td style="padding:5px 8px;text-align:center;font-weight:600;color:#25AFC4">' + row.result + '</td></tr>';
   });
   tableHTML += '</table>';
   var existing = document.getElementById('debugOverlay');
@@ -446,7 +439,7 @@ function debugDims() {
   header.innerHTML = '<strong style="font-size:14px">Debug Dimensiones (filtro activo)</strong>';
   var closeBtn = document.createElement('button');
   closeBtn.textContent = 'X';
-  closeBtn.style.cssText = 'border:none;background:none;font-size:18px;cursor:pointer;font-weight:600';
+  closeBtn.style.cssText = 'border:none;background:#eee;border-radius:6px;padding:4px 10px;font-size:14px;cursor:pointer';
   closeBtn.onclick = function(){ overlay.remove(); };
   header.appendChild(closeBtn);
   panel.appendChild(header);
