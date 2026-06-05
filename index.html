@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Satisfacción PASOS UANDES</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --salmon: #D8162D; --salmon-dark: #D8162D; --salmon-light: #fdeaea; --salmon-mid: #ED6B6A;
+    --green: #93C049; --amber: #F28E35; --purple: #25AFC4; --blue: #79C3A1;
+    --bg: #ffffff; --bg2: #f7f7f5; --bg3: #f0efec;
+    --text: #1a1a1a; --text2: #666; --text3: #999;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.2);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --bg2: #242424; --bg3: #2e2e2e;
+      --text: #f0f0f0; --text2: #aaa; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --salmon-light: #3a1a16;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .top-bar h1 { font-size: 20px; font-weight: 600; color: #25AFC4; display: flex; align-items: center; gap: 8px; }
+  .top-bar h1 svg { width: 22px; height: 22px; }
+  .update-time { font-size: 12px; color: var(--text3); }
+  
+  .filters { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 20px; }
+  .fgroup { display: flex; flex-direction: column; gap: 4px; }
+  .fgroup label { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .fgroup select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); min-width: 180px; cursor: pointer; }
+  .fgroup select:focus { outline: 2px solid #25AFC4; outline-offset: 1px; }
+  
+  .btn { font-size: 12px; padding: 6px 14px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); cursor: pointer; font-family: inherit; transition: background 0.15s; align-self: flex-end; }
+  .btn:hover { background: var(--bg3); color: var(--text); }
+  .btn.primary { background: #fdeaea; color: var(--salmon-dark); border-color: var(--salmon-mid); }
+  .btn.primary:hover { background: #93C049; color: #fff; }
+  
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; margin-top: 4px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; border: 0.5px solid var(--border); }
+  .kpi.accent { background: var(--salmon-light); }
+  .kpi .lbl { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .kpi .val { font-size: 26px; font-weight: 600; line-height: 1; }
+  .kpi .sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; min-height: 280px; }
+  .card h3 { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 14px; }
+  
+  .dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .dim-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .dim-title { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 12px; color: #25AFC4; }
+  .dim-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .dim-label { font-size: 12px; color: var(--text); flex: 1; line-height: 1.3; }
+  .dim-bar-wrap { flex: 0 0 100px; width: 100px; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .dim-bar { height: 6px; border-radius: 3px; }
+  .dim-val { font-size: 12px; font-weight: 600; color: var(--text); flex: 0 0 40px; text-align: right; }
+
+  .ai-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 20px; }
+  .ai-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .ai-header h3 { font-size: 15px; font-weight: 500; color: var(--text); }
+  .ai-btn { font-size: 12px; padding: 6px 14px; border-radius: var(--radius); border: none; background: #25AFC4; color: #fff; cursor: pointer; font-weight: 500; }
+  .ai-btn:hover { background: #1d9ab0; }
+  .ai-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .ai-cols { grid-template-columns: 1fr; } }
+  .ai-col { border-radius: var(--radius); padding: 14px; }
+  .ai-col.strengths { background: #f0faf4; border: 0.5px solid #b3e5c8; }
+  .ai-col.improvements { background: #fffbf0; border: 0.5px solid #f5dfa0; }
+  .ai-col-title { font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; }
+  .ai-col.strengths .ai-col-title { color: #1a7a40; }
+  .ai-col.improvements .ai-col-title { color: #8a6000; }
+  .ai-item { font-size: 13px; color: var(--text); padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06); line-height: 1.5; }
+  .ai-item:last-child { border-bottom: none; }
+  
+  .loading-wrap { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .spinner { display: inline-flex; gap: 6px; margin-top: 10px; }
+  .spinner span { width: 9px; height: 9px; border-radius: 50%; background: #25AFC4; animation: pulse 1.2s infinite; }
+  .spinner span:nth-child(2) { animation-delay: 0.2s; }
+  .spinner span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+  
+  @media (prefers-color-scheme: dark) {
+    .ai-col.strengths { background: #0f2e1a; border-color: #2a6040; }
+    .ai-col.improvements { background: #2a2000; border-color: #6a5000; }
+    .ai-col.strengths .ai-col-title { color: #5dd98a; }
+    .ai-col.improvements .ai-col-title { color: #f9c920; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-bar">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 17V13M12 17V9M16 17V11"/></svg>
+      Satisfacción PASOS UANDES
+    </h1>
+    <span class="update-time" id="updateTime">—</span>
+  </div>
+ 
+  <div class="filters">
+    <div class="fgroup">
+      <label>Colegio</label>
+      <select id="fColegio" onchange="filterData()"><option value="">Todos los colegios</option></select>
+    </div>
+    <div class="fgroup">
+      <label>Instancia</label>
+      <select id="fInstancia" onchange="filterData()"><option value="">Todas las instancias</option></select>
+    </div>
+    <div class="fgroup">
+      <label>Curso</label>
+      <select id="fCurso" onchange="filterData()"><option value="">Todos los cursos</option></select>
+    </div>
+    <button class="btn" onclick="resetFilters()">↺ Limpiar filtros</button>
+    <button class="btn primary" onclick="loadAll()">⟳ Actualizar datos</button>
+  </div>
+ 
+  <div id="mainContent">
+    <div class="loading-wrap">
+      <p>Conectando con Google Sheets...</p>
+      <div class="spinner"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</div>
+ 
+<script>
+const SAT_TABS = [
+  { gid: '147457222',  name: 'Cursos docentes', color: '#D8162D' },
+  { gid: '1169498342', name: 'Talleres',         color: '#79C3A1' },
+  { gid: '1160166332', name: 'Encuentros',       color: '#93C049' },
+  { gid: '1165973427', name: 'Cursos padres',    color: '#F28E35' },
+  { gid: '507753126',  name: 'Acompañamientos',  color: '#25AFC4' }
+];
+
+const CSV_URLS = {
+  '147457222': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=147457222&single=true&output=csv',
+  '1169498342': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1169498342&single=true&output=csv',
+  '1160166332': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1160166332&single=true&output=csv',
+  '1165973427': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1165973427&single=true&output=csv',
+  '507753126': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=507753126&single=true&output=csv'
+};
+
+const DIM_COLS = {
+  'Cursos docentes': [
+    { label: 'Temas relevantes',      kw: 'temas tratados son importantes para mi desarrollo', type: 'pct' },
+    { label: 'Aprendizaje nuevo',     kw: 'cosas nuevas',                                      type: 'pct' },
+    { label: 'Ambiente acogedor',     kw: 'ambiente acogedor',                                 type: 'pct' },
+    { label: 'Claridad relator',      kw: 'transmitio con claridad',                           type: 'pct' }
+  ],
+  'Talleres': [
+    { label: 'Temas relevantes',      kw: 'temas tratados son importantes para mi y mi familia', type: 'pct' },
+    { label: 'Herramientas practicas',kw: 'herramientas practicas',                             type: 'pct' },
+    { label: 'Claridad relator',      kw: 'transmitio con claridad',                            type: 'pct' }
+  ],
+  'Encuentros': [
+    { label: 'Calidad actividad',     kw: 'como evaluaria la actividad',                        type: 'avg' },
+    { label: 'Vinculacion lograda',   kw: 'logro generar',                                      type: 'bool' },
+    { label: 'Tema apropiado',        kw: 'apropiado el tema',                                  type: 'bool' }
+  ],
+  'Acompañamientos': [
+    { label: 'Ambiente acogedor',     kw: 'ambiente acogedor',                                  type: 'pct' },
+    { label: 'Claridad asesora',      kw: 'se expreso con claridad',                            type: 'pct' },
+    { label: 'Respeto',               kw: 'senti respetado',                                    type: 'pct' },
+    { label: 'Temas importantes',     kw: 'temas tratados son importantes para mi y mi familia', type: 'pct' },
+    { label: 'Herramientas',          kw: 'conocimientos y/o herramientas',                     type: 'pct' }
+  ]
+};
+
+let allRows = [];
+let charts = {};
+
+// Robust CSV Parser que soporta comas anidadas dentro de comillas
+function parseCSV(text) {
+  const lines = [];
+  let row = [""];
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i+1];
+    if (c === '"') {
+      if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (c === ',' && !inQuotes) {
+      row.push('');
+    } else if ((c === '\r' || c === '\n') && !inQuotes) {
+      if (c === '\r' && next === '\n') { i++; }
+      lines.push(row);
+      row = [''];
+    } else {
+      row[row.length - 1] += c;
+    }
+  }
+  if (row.length > 1 || row[0] !== '') lines.push(row);
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (line[i] || '').trim(); });
+    return obj;
+  });
+}
+
+function stripAccents(s) {
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/ +/g, ' ').trim();
+}
+
+function parseNPS(v) {
+  if (!v) return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : Math.round(Math.min(10, Math.max(0, n)));
+}
+
+function parseSat(v) {
+  if (!v) return null;
+  const s = String(v).replace(/^\d\.\s*/, '').toLowerCase();
+  const map = {'muy de acuerdo':5,'de acuerdo':4,'ni de acuerdo ni en desacuerdo':3,'en desacuerdo':2,'muy en desacuerdo':1};
+  for (const [k, n] of Object.entries(map)) if (s.includes(k)) return n;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : Math.min(5, Math.max(1, n));
+}
+
+function parseVolveria(v) {
+  if (!v) return null;
+  const s = stripAccents(v);
+  if (['si', 'yes', '1', 'true'].includes(s)) return true;
+  if (['no', '0', 'false'].includes(s)) return false;
+  return null;
+}
+
+async function loadTab(tab) {
+  try {
+    const res = await fetch(CSV_URLS[tab.gid]);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (!rows.length) return [];
+
+    const headers = Object.keys(rows[0]);
+    const normHeaders = headers.map(stripAccents);
+
+    const findCol = (kws) => {
+      for (const kw of kws) {
+        const normKw = stripAccents(kw);
+        const idx = normHeaders.findIndex(h => h.includes(normKw));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+
+    const colIdx = findCol(['colegio']);
+    const npsIdx = findCol(['nps']);
+    const satIdx = findCol(['satisfaccion general', 'satisfacci']);
+    const volIdx = findCol(['volveria a participar', 'volveria', 'volver']);
+    const cursoIdx = findCol(['curso']);
+    const mejoraIdx = findCol(['como podria mejorar', 'podria mejorar', 'mejorar']);
+
+    const dims = DIM_COLS[tab.name] || [];
+    const dimIdxs = dims.map(d => findCol([d.kw]));
+
+    const byIdx = (row, idx) => idx < 0 ? '' : Object.values(row)[idx] || '';
+
+    return rows.map(row => {
+      const dimVals = {};
+      dims.forEach((d, i) => {
+        const raw = byIdx(row, dimIdxs[i]);
+        if (!raw) return;
+        if (d.type === 'bool') {
+          const s = stripAccents(raw);
+          if (['si', 'yes'].includes(s)) dimVals[d.label] = 1;
+          else if (s === 'no') dimVals[d.label] = 0;
+        } else {
+          const n = parseSat(raw);
+          if (n !== null) dimVals[d.label] = n;
+        }
+      });
+
+      return {
+        instancia: tab.name,
+        color: tab.color,
+        colegio: byIdx(row, colIdx),
+        nps: parseNPS(byIdx(row, npsIdx)),
+        sat: parseSat(byIdx(row, satIdx)),
+        volveria: parseVolveria(byIdx(row, volIdx)),
+        curso: byIdx(row, cursoIdx).trim(),
+        dims: dimVals,
+        mejora: byIdx(row, mejoraIdx)
+      };
+    }).filter(r => r.colegio);
+  } catch (e) {
+    console.error(`Error en pestaña ${tab.name}:`, e);
+    return [];
+  }
+}
+
+async function loadAll() {
+  const container = document.getElementById('mainContent');
+  container.innerHTML = `
+    <div class="loading-wrap">
+      <p>Cargando datos desde Google Sheets...</p>
+      <div class="spinner"><span></span><span></span><span></span></div>
+    </div>`;
+
+  destroyCharts();
+  
+  const promises = SAT_TABS.map(tab => loadTab(tab));
+  const results = await Promise.allSettled(promises);
+  
+  allRows = [];
+  results.forEach(res => {
+    if (res.status === 'fulfilled') allRows.push(...res.value);
+  });
+
+  document.getElementById('updateTime').textContent = new Date().toLocaleTimeString();
+  populateFilterOptions();
+  renderDashboard();
+}
+
+function destroyCharts() {
+  Object.keys(charts).forEach(k => {
+    if (charts[k]) { charts[k].destroy(); delete charts[k]; }
+  });
+}
+
+function populateFilterOptions() {
+  const colegios = [...new Set(allRows.map(r => r.colegio))].sort();
+  const instancias = [...new Set(allRows.map(r => r.instancia))].sort();
+  const cursos = [...new Set(allRows.map(r => r.curso))].filter(Boolean).sort();
+
+  updateSelect('fColegio', colegios, 'Todos los colegios');
+  updateSelect('fInstancia', instancias, 'Todas las instancias');
+  updateSelect('fCurso', cursos, 'Todos los cursos');
+}
+
+function updateSelect(id, list, defaultText) {
+  const el = document.getElementById(id);
+  const currentVal = el.value;
+  el.innerHTML = `<option value="">${defaultText}</option>`;
+  list.forEach(v => {
+    el.innerHTML += `<option value="${v}">${v}</option>`;
+  });
+  el.value = list.includes(currentVal) ? currentVal : '';
+}
+
+function getFilteredData() {
+  const col = document.getElementById('fColegio').value;
+  const inst = document.getElementById('fInstancia').value;
+  const cur = document.getElementById('fCurso').value;
+
+  return allRows.filter(r => {
+    return (!col || r.colegio === col) &&
+           (!inst || r.instancia === inst) &&
+           (!cur || r.curso === cur);
+  });
+}
+
+function filterData() {
+  renderDashboard();
+}
+
+function resetFilters() {
+  document.getElementById('fColegio').value = '';
+  document.getElementById('fInstancia').value = '';
+  document.getElementById('fCurso').value = '';
+  renderDashboard();
+}
+
+function renderDashboard() {
+  destroyCharts();
+  const data = getFilteredData();
+  
+  const container = document.getElementById('mainContent');
+  if (!data.length) {
+    container.innerHTML = '<div class="loading-wrap"><p>No hay datos consistentes para los filtros aplicados.</p></div>';
+    return;
+  }
+
+  // Cálculos de KPIs Clave Exactos
+  const npsRows = data.filter(r => r.nps !== null);
+  let npsText = "—";
+  if (npsRows.length) {
+    const promotores = npsRows.filter(r => r.nps >= 9).length;
+    const detractores = npsRows.filter(r => r.nps <= 6).length;
+    const npsCalc = Math.round(((promotores - detractores) / npsRows.length) * 100);
+    npsText = `${npsCalc > 0 ? '+' : ''}${npsCalc}`;
+  }
+
+  const satRows = data.filter(r => r.sat !== null);
+  const avgSat = satRows.length ? (satRows.reduce((acc, r) => acc + r.sat, 0) / satRows.length).toFixed(2) : "—";
+
+  const volRows = data.filter(r => r.volveria !== null);
+  const pctVol = volRows.length ? Math.round((volRows.filter(r => r.volveria).length / volRows.length) * 100) : "—";
+
+  // Generación Estructura HTML Base del Dashboard
+  let html = `
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="lbl">Respuestas Totales</div>
+        <div class="val">${data.length}</div>
+        <div class="sub">Registros válidos</div>
+      </div>
+      <div class="kpi accent">
+        <div class="lbl">Métrica Global NPS</div>
+        <div class="val">${npsText}</div>
+        <div class="sub">Fórmula Matemática Oficial</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Satisfacción General</div>
+        <div class="val">${avgSat} / 5.00</div>
+        <div class="sub">Media de escala Likert</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">% Volvería a participar</div>
+        <div class="val">${pctVol}${typeof pctVol === 'number' ? '%' : ''}</div>
+        <div class="sub">Intención de retorno</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card"><h3 style="text-align:center">Distribución de Satisfacción</h3><canvas id="chartSat"></canvas></div>
+      <div class="card"><h3 style="text-align:center">Volumen por Instancia</h3><canvas id="chartInst"></canvas></div>
+    </div>
+
+    <h2 class="section-title">Análisis de Atributos Específicos</h2>
+    <div class="dims-grid">
+  `;
+
+  // Renderizado Dinámico de Dimensiones por Instancia activa
+  const instanciasActivas = [...new Set(data.map(r => r.instancia))];
+  instanciasActivas.forEach(inst => {
+    const configDims = DIM_COLS[inst] || [];
+    if (!configDims.length) return;
+
+    const instRows = data.filter(r => r.instancia === inst);
+    let sectionHtml = `<div class="dim-section"><div class="dim-title">${inst}</div>`;
+    let hasDimsData = false;
+
+    configDims.forEach(d => {
+      const vals = instRows.map(r => r.dims[d.label]).filter(v => v !== undefined && v !== null);
+      if (!vals.length) return;
+      hasDimsData = true;
+
+      let displayVal = "";
+      let pct = 0;
+      if (d.type === 'pct') {
+        pct = Math.round((vals.filter(v => v >= 4).length / vals.length) * 100);
+        displayVal = `${pct}%`;
+      } else if (d.type === 'bool') {
+        pct = Math.round((vals.filter(v => v === 1).length / vals.length) * 100);
+        displayVal = `${pct}%`;
+      } else {
+        const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+        pct = Math.round((avg / 5) * 100);
+        displayVal = `${avg.toFixed(1)} pts`;
+      }
+
+      sectionHtml += `
+        <div class="dim-row">
+          <div class="dim-label">${d.label}</div>
+          <div class="dim-bar-wrap"><div class="dim-bar" style="width: ${pct}%; background: ${instRows[0].color || '#25AFC4'}"></div></div>
+          <div class="dim-val">${displayVal}</div>
+        </div>`;
+    });
+
+    sectionHtml += `</div>`;
+    if (hasDimsData) html += sectionHtml;
+  });
+
+  html += `
+    </div>
+    <div class="ai-section">
+      <div class="ai-header">
+        <h3>✨ Procesamiento Semántico de Comentarios</h3>
+        <button class="ai-btn" onclick="runTextAnalysis()">Analizar Texto Libres</button>
+      </div>
+      <div class="ai-cols">
+        <div class="ai-col strengths"><div class="ai-col-title">✅ Fortalezas recurrentes</div><div id="aiStrengths"><span class="ai-placeholder">Presione analizar para clasificar semánticamente.</span></div></div>
+        <div class="ai-col improvements"><div class="ai-col-title">🔧 Áreas de oportunidad</div><div id="aiImprovements"><span class="ai-placeholder">Presione analizar para clasificar semánticamente.</span></div></div>
+      </div>
+    </div>`;
+
+  container.innerHTML = html;
+
+  // Renderizado Seguro de Gráficos de Chart.js
+  const satCounts = [0, 0, 0, 0, 0];
+  data.forEach(r => { if (r.sat >= 1 && r.sat <= 5) satCounts[r.sat - 1]++; });
+
+  charts.sat = new Chart(document.getElementById('chartSat'), {
+    type: 'bar',
+    data: {
+      labels: ['1 ★', '2 ★', '3 ★', '4 ★', '5 ★'],
+      datasets: [{ label: 'Evaluaciones', data: satCounts, backgroundColor: '#ED6B6A', borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+  });
+
+  const instCounts = {};
+  data.forEach(r => { instCounts[r.instancia] = (instCounts[r.instancia] || 0) + 1; });
+
+  charts.inst = new Chart(document.getElementById('chartInst'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(instCounts),
+      datasets: [{
+        data: Object.values(instCounts),
+        backgroundColor: Object.keys(instCounts).map(k => SAT_TABS.find(t => t.name === k)?.color || '#999')
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+function runTextAnalysis() {
+  const data = getFilteredData();
+  const comments = data.map(r => r.mejora).filter(c => c && c.trim().length > 5);
+
+  if (!comments.length) {
+    document.getElementById('aiStrengths').innerHTML = '<div class="ai-item">Sin comentarios suficientes en esta vista.</div>';
+    document.getElementById('aiImprovements').innerHTML = '<div class="ai-item">Sin comentarios suficientes en esta vista.</div>';
+    return;
+  }
+
+  // Algoritmo Heurístico de Clasificación Semántica Seguro
+  const positivas = [];
+  const mejoras = [];
+
+  comments.forEach(c => {
+    const text = c.toLowerCase();
+    const isImprovement = /mas|extender|agregar|incluir|podria|sugiero|falta|mejorar|cambiar|ajustar|tiempo|horas|duracion/i.test(text);
+    if (isImprovement) {
+      mejoras.push(c);
+    } else {
+      positivas.push(c);
+    }
+  });
+
+  const buildList = (arr) => arr.length ? arr.slice(0, 4).map(t => `<div class="ai-item">“${t}”</div>`).join('') : '<div class="ai-item">Sin comentarios registrados.</div>';
+
+  document.getElementById('aiStrengths').innerHTML = buildList(positivas);
+  document.getElementById('aiImprovements').innerHTML = buildList(mejoras);
+}
+
+// Inicialización Automática al cargar el Documento DOM
+document.addEventListener("DOMContentLoaded", () => {
+  loadAll();
+});
+</script>
+</body>
+</html>
