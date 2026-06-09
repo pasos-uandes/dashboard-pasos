@@ -117,6 +117,7 @@
     .pill-g { background: #2a3d1a; color: #a8d860; }
     .pill-a { background: #3a2a00; color: #f9b875; }
     .pill-r { background: #3a1010; color: #ED6B6A; }
+    .pill-c { background: #0e2e33; color: #4dd4e8; }
   }
   .loading-wrap { text-align: center; padding: 60px 20px; color: var(--text2); }
   .loading-wrap p { font-size: 15px; margin-bottom: 16px; }
@@ -742,9 +743,27 @@ function calcVol(rows) {
   return answered.filter(function(r){ return r.volveria === true; }).length / answered.length * 100;
 }
 
-function npsColor(n) { return n===null?'#999':n>=50?'#93C049':n>=0?'#F28E35':'#D8162D'; }
-function npsLabel(n) { return n===null?'Sin datos':n>=50?'Excelente':n>=0?'Bueno':'Por mejorar'; }
-function pillCls(n) { return n===null?'pill':n>=50?'pill pill-g':n>=0?'pill pill-a':'pill pill-r'; }
+function npsColor(n) {
+  if (n===null) return '#999';
+  if (n>=75) return '#25AFC4';   // Excepcional
+  if (n>=60) return '#93C049';   // Excelente
+  if (n>=30) return '#F28E35';   // Bueno
+  return '#D8162D';              // Por mejorar
+}
+function npsLabel(n) {
+  if (n===null) return 'Sin datos';
+  if (n>=75) return 'Excepcional';
+  if (n>=60) return 'Excelente';
+  if (n>=30) return 'Bueno';
+  return 'Por mejorar';
+}
+function pillCls(n) {
+  if (n===null) return 'pill';
+  if (n>=75) return 'pill pill-c';   // calipso = Excepcional
+  if (n>=60) return 'pill pill-g';   // verde = Excelente
+  if (n>=30) return 'pill pill-a';   // naranjo = Bueno
+  return 'pill pill-r';              // rojo = Por mejorar
+}
 
 function destroyAll() { Object.keys(charts).forEach(id=>{try{charts[id].destroy();}catch(e){}delete charts[id];}); }
 function mkChart(id,type,data,opts) {
