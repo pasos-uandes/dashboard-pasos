@@ -777,7 +777,7 @@ function render() {
   // ── BUILD COURSE TABLE HTML ────────────────────────────────────────────────
   const cursoSet = sortCursos([...new Set(rows.map(r=>r.curso).filter(Boolean))]);
   let cursoTableHtml = '';
-  if (cursoSet.length > 1) {
+  if (cursoSet.length >= 1) {
     const byCurso = {};
     cursoSet.forEach(c => {
       const r = rows.filter(x=>x.curso===c);
