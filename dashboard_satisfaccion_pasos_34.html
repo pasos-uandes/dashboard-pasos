@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Satisfacción PASOS UANDES</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --salmon: #D8162D; --salmon-dark: #D8162D; --salmon-light: #fdeaea; --salmon-mid: #ED6B6A;
+    --green: #93C049; --amber: #F28E35; --purple: #25AFC4; --blue: #79C3A1;
+    --bg: #ffffff; --bg2: #f7f7f5; --bg3: #f0efec;
+    --text: #1a1a1a; --text2: #666; --text3: #999;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.2);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --bg2: #242424; --bg3: #2e2e2e;
+      --text: #f0f0f0; --text2: #aaa; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --salmon-light: #3a1a16;
+    }
+  }
+  .multi-select-box { display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 10px; border-radius:var(--radius); border:0.5px solid var(--border2); background:var(--bg2); color:var(--text); min-width:200px; cursor:pointer; user-select:none; }
+  .multi-select-menu { position:absolute; top:calc(100% + 4px); left:0; z-index:999; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); box-shadow:0 4px 16px rgba(0,0,0,0.12); min-width:240px; max-height:280px; overflow-y:auto; padding:6px 0; }
+  .ms-item { display:flex; align-items:center; gap:8px; padding:6px 14px; font-size:13px; color:var(--text); cursor:pointer; }
+  .ms-item:hover { background:var(--bg2); }
+  .ms-item input[type=checkbox] { cursor:pointer; accent-color:var(--salmon); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .top-bar h1 { font-size: 20px; font-weight: 600; color: #25AFC4; display: flex; align-items: center; gap: 8px; }
+  .top-bar h1 svg { width: 22px; height: 22px; }
+  .update-time { font-size: 12px; color: var(--text3); }
+  .filters { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 20px; }
+  .fgroup { display: flex; flex-direction: column; gap: 4px; }
+  .fgroup label { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .fgroup select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); min-width: 150px; cursor: pointer; }
+  .fgroup select:focus { outline: 2px solid #25AFC4; outline-offset: 1px; }
+  .btn { font-size: 12px; padding: 6px 14px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); cursor: pointer; font-family: inherit; transition: background 0.15s; align-self: flex-end; }
+  .btn:hover { background: var(--bg3); color: var(--text); }
+  .btn.primary { background: #fdeaea; color: var(--salmon-dark); border-color: var(--salmon-mid); }
+  .btn.primary:hover { background: #93C049; color: #fff; }
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; margin-top: 4px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi.accent { background: #fdeaea; }
+  .kpi .lbl { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .kpi .val { font-size: 26px; font-weight: 600; line-height: 1; }
+  .kpi .sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .nps-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .nps-bar .bp { background: #93C049; }
+  .nps-bar .bn { background: #F28E35; }
+  .nps-bar .bd { background: #D8162D; }
+  .nps-legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 10px; color: var(--text3); margin-top: 5px; }
+  .inst-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .inst-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .inst-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+  .inst-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .inst-nps { font-size: 24px; font-weight: 600; line-height: 1; margin-bottom: 4px; }
+  .inst-sub { font-size: 11px; color: var(--text3); }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 640px) { .charts-row { grid-template-columns: 1fr; } }
+  .dim-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 14px; }
+  .dim-title { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 12px; }
+  .dim-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .dim-label { font-size: 12px; color: var(--text); flex: 0 0 auto; width: 110px; min-width: 110px; line-height: 1.3; word-break: keep-all; }
+  .dim-bar-wrap { flex: 1; min-width: 40px; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .dim-bar { height: 6px; border-radius: 3px; max-width: 100%; }
+  .dim-val { font-size: 12px; font-weight: 600; color: var(--text); flex: 0 0 auto; min-width: 36px; text-align: right; white-space: nowrap; }
+  .dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .ai-section { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 20px; }
+  .ai-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .ai-header h3 { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .ai-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ai-controls select { font-size: 12px; padding: 5px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); }
+  .ai-btn { font-size: 12px; padding: 6px 14px; border-radius: var(--radius); border: none; background: #25AFC4; color: #fff; cursor: pointer; font-weight: 500; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .ai-btn:hover { background: #1d9ab0; }
+  .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .ai-cols { grid-template-columns: 1fr; } }
+  .ai-col { border-radius: var(--radius); padding: 14px; }
+  .ai-col.strengths { background: #f0faf4; border: 0.5px solid #b3e5c8; }
+  .ai-col.improvements { background: #fffbf0; border: 0.5px solid #f5dfa0; }
+  .ai-col-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .ai-col.strengths .ai-col-title { color: #1a7a40; }
+  .ai-col.improvements .ai-col-title { color: #8a6000; }
+  .ai-item { font-size: 13px; color: var(--text); padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06); line-height: 1.5; }
+  .ai-item:last-child { border-bottom: none; }
+  .ai-placeholder { font-size: 13px; color: var(--text3); font-style: italic; text-align: center; padding: 20px 0; }
+  .ai-loading { text-align: center; padding: 20px; color: var(--text2); font-size: 13px; }
+  @media (prefers-color-scheme: dark) {
+    .ai-col.strengths { background: #0f2e1a; border-color: #2a6040; }
+    .ai-col.improvements { background: #2a2000; border-color: #6a5000; }
+    .ai-col.strengths .ai-col-title { color: #5dd98a; }
+    .ai-col.improvements .ai-col-title { color: #f9c920; }
+  }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .card h3 { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--text2); margin-bottom: 10px; }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend .sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  table.school-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .school-table th { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 10px; border-bottom: 0.5px solid var(--border); text-align: left; white-space: nowrap; }
+  .school-table th:not(:first-child) { text-align: center; }
+  .school-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .school-table td:not(:first-child) { text-align: center; }
+  .school-table tr:last-child td { border-bottom: none; }
+  .school-table tr:hover td { background: var(--bg2); }
+  .pill { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 500; }
+  .pill-g { background: #e8f5d6; color: #4a7a10; }
+  .pill-a { background: #fff0d6; color: #8a4a00; }
+  .pill-r { background: #fde8e8; color: #a01020; }
+  @media (prefers-color-scheme: dark) {
+    .pill-g { background: #2a3d1a; color: #a8d860; }
+    .pill-a { background: #3a2a00; color: #f9b875; }
+    .pill-r { background: #3a1010; color: #ED6B6A; }
+    .pill-c { background: #0e2e33; color: #4dd4e8; }
+  }
+  .loading-wrap { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .loading-wrap p { font-size: 15px; margin-bottom: 16px; }
+  .spinner { display: inline-flex; gap: 6px; }
+  .spinner span { width: 9px; height: 9px; border-radius: 50%; background: var(--border2); animation: pulse 1.2s infinite; }
+  .spinner span:nth-child(2) { animation-delay: 0.2s; }
+  .spinner span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+  .error-wrap { background: #fde8e8; border: 1px solid #f5a0a0; border-radius: var(--radius-lg); padding: 20px; color: #921a1a; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+  .error-wrap strong { display: block; font-size: 15px; margin-bottom: 8px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .tab { font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .tab.active { background: #25AFC4; color: #fff; border-color: transparent; font-weight: 500; }
+  .divider { height: 0.5px; background: var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-bar">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 17V13M12 17V9M16 17V11"/></svg>
+      Satisfacción PASOS UANDES
+    </h1>
+    <span class="update-time" id="updateTime">—</span>
+  </div>
+
+  <div class="filters">
+    <div class="fgroup" style="position:relative">
+      <label>Colegio</label>
+      <div id="colegioDropdown" class="multi-select-box" onclick="toggleColegioMenu(event)">
+        <span id="colegioLabel">Todos los colegios</span>
+        <span style="margin-left:auto;opacity:.5;font-size:11px">▼</span>
+      </div>
+      <div id="colegioMenu" class="multi-select-menu" style="display:none">
+        <label class="ms-item"><input type="checkbox" id="ms-all" onchange="toggleAll(this)"> <em>Todos los colegios</em></label>
+        <div id="ms-list"></div>
+        <div style="padding:8px 14px;border-top:0.5px solid var(--border);margin-top:4px">
+          <button onclick="applyColegioFilter()" style="width:100%;padding:7px;border-radius:var(--radius);border:none;background:#25AFC4;color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">Aplicar filtro</button>
+        </div>
+      </div>
+    </div>
+    <div class="fgroup">
+      <label>Instancia</label>
+      <select id="fInstancia"><option value="">Todas las instancias</option></select>
+    </div>
+    <div class="fgroup">
+      <label>Curso</label>
+      <select id="fCurso"><option value="">Todos los cursos</option></select>
+    </div>
+    <button class="btn" onclick="resetFilters()">↺ Limpiar filtros</button>
+    <button class="btn primary" onclick="loadAll()">⟳ Actualizar datos</button>
+  </div>
+
+  <div id="mainContent">
+    <div class="loading-wrap">
+      <p>Conectando con Google Sheets...</p>
+      <div class="spinner"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1xl5nTkxeFZlUE4-ItVTRR-EI1f4QasHc5Zxt_HwkEd4';
+// Dimension columns per tab (label → keyword to find in header)
+const DIM_COLS = {
+  'Cursos docentes': [
+    { label: 'Temas relevantes',      kw: 'temas tratados son importantes para mi desarrollo', type: 'pct' },
+    { label: 'Aprendizaje nuevo',     kw: 'cosas nuevas',                                      type: 'pct' },
+    { label: 'Ambiente acogedor',     kw: 'ambiente acogedor',                                 type: 'pct' },
+    { label: 'Claridad relator',      kw: 'transmitio con claridad',                           type: 'pct' }
+  ],
+  'Talleres': [
+    { label: 'Temas relevantes',      kw: 'temas tratados son importantes para mi y mi familia', type: 'pct' },
+    { label: 'Herramientas practicas',kw: 'herramientas practicas',                             type: 'pct' },
+    { label: 'Claridad relator',      kw: 'transmitio con claridad',                            type: 'pct' }
+  ],
+  'Encuentros': [
+    { label: 'Calidad actividad',     kw: 'como evaluaria la actividad',                        type: 'avg' },
+    { label: 'Vinculacion lograda',   kw: 'logro generar',                                      type: 'bool' },
+    { label: 'Tema apropiado',        kw: 'apropiado el tema',                                  type: 'bool' }
+  ],
+  'Acompañamientos': [
+    { label: 'Ambiente acogedor',     kw: 'ambiente acogedor',                                  type: 'pct' },
+    { label: 'Claridad asesora',      kw: 'se expreso con claridad',                            type: 'pct' },
+    { label: 'Respeto',               kw: 'senti respetado',                                    type: 'pct' },
+    { label: 'Temas importantes',     kw: 'temas tratados son importantes para mi y mi familia', type: 'pct' },
+    { label: 'Herramientas',          kw: 'conocimientos y/o herramientas',                     type: 'pct' }
+  ]
+};
+
+const SAT_TABS = [
+  { gid: '147457222',  name: 'Cursos docentes', color: '#D8162D' },
+  { gid: '1169498342', name: 'Talleres',         color: '#79C3A1' },
+  { gid: '1160166332', name: 'Encuentros',       color: '#93C049' },
+  { gid: '1165973427', name: 'Cursos padres',    color: '#F28E35' },
+  { gid: '507753126',  name: 'Acompañamientos',  color: '#25AFC4' }
+];
+
+let allRows = [], charts = {};
+
+const CSV_URLS = {
+    '147457222': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=147457222&single=true&output=csv',
+    '1169498342': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1169498342&single=true&output=csv',
+    '1160166332': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1160166332&single=true&output=csv',
+    '1165973427': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=1165973427&single=true&output=csv',
+    '507753126': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS93-gYVVKQeWpklM81M4wQFZC79GepKEq_hrNwoo_yS3oNC86QXywBNPQi8_nJzfjQBj8LzcP3EeKl/pub?gid=507753126&single=true&output=csv'
+  };
+function csvUrl(gid) {
+  return CSV_URLS[gid] || '';
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line => {
+    const vals = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') inQ = !inQ;
+      else if (line[i] === ',' && !inQ) { vals.push(cur); cur = ''; }
+      else cur += line[i];
+    }
+    vals.push(cur);
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = (vals[i]||'').replace(/^"|"$/g,'').trim());
+    return obj;
+  }).filter(r => Object.values(r).some(v=>v));
+}
+
+function getVal(row, patterns) {
+  const keys = Object.keys(row);
+  for (const p of patterns) {
+    const k = keys.find(k => k.toLowerCase().includes(p.toLowerCase()));
+    if (k && row[k]) return row[k];
+  }
+  return '';
+}
+
+function parseNPS(v) {
+  if (!v) return null;
+  const n = parseFloat(String(v).replace(',','.'));
+  return isNaN(n) ? null : Math.round(Math.min(10, Math.max(0, n)));
+}
+
+function parseSat(v) {
+  if (!v) return null;
+  const s = String(v).replace(/^\d\.\s*/,'').toLowerCase();
+  // Check longer phrases first to avoid substring false matches
+  // e.g. 'de acuerdo' must not match inside 'ni de acuerdo ni en desacuerdo'
+  if (s.includes('ni de acuerdo ni en desacuerdo')) return 3;
+  if (s.includes('muy de acuerdo')) return 5;
+  if (s.includes('muy en desacuerdo')) return 1;
+  if (s.includes('de acuerdo')) return 4;
+  if (s.includes('en desacuerdo')) return 2;
+  const n = parseFloat(String(v).replace(',','.'));
+  return isNaN(n) ? null : Math.min(5, Math.max(1, n));
+}
+
+function parseVolveria(v) {
+  if (!v || v.trim() === '') return null;
+  const s = String(v).toLowerCase().trim()
+    .replace(/í/g,'i').replace(/á/g,'a'); // normalize accents
+  if (s === 'si' || s === 'yes' || s === '1' || s === 'true') return true;
+  if (s === 'no' || s === '0' || s === 'false') return false;
+  // Handle numeric (e.g. percentage stored as number)
+  const n = parseFloat(s);
+  if (!isNaN(n)) return n > 50;
+  return null;
+}
+
+function normCurso(v) {
+  if (!v) return '';
+  var s = v.trim()
+    .replace(/í/g,'i').replace(/ì/g,'i')
+    .replace(/á/g,'a').replace(/à/g,'a')
+    .replace(/é/g,'e').replace(/è/g,'e')
+    .replace(/ó/g,'o').replace(/ò/g,'o')
+    .replace(/ú/g,'u').replace(/ù/g,'u')
+    .replace(/ñ/g,'n')
+    .toLowerCase();
+  // Explicit mapping for all known curso names
+  var MAP = {
+    'pre kinder':'Pre Kinder', 'prekinder':'Pre Kinder', 'pre-kinder':'Pre Kinder',
+    'kinder':'Kinder', 'kindergarten':'Kinder',
+    'primero basico':'Primero Basico', '1 basico':'Primero Basico', '1ro basico':'Primero Basico', '1° basico':'Primero Basico',
+    'segundo basico':'Segundo Basico', '2 basico':'Segundo Basico', '2do basico':'Segundo Basico', '2° basico':'Segundo Basico',
+    'tercero basico':'Tercero Basico', '3 basico':'Tercero Basico', '3ro basico':'Tercero Basico', '3° basico':'Tercero Basico',
+    'cuarto basico':'Cuarto Basico', '4 basico':'Cuarto Basico', '4to basico':'Cuarto Basico', '4° basico':'Cuarto Basico',
+    'quinto basico':'Quinto Basico', '5 basico':'Quinto Basico', '5to basico':'Quinto Basico', '5° basico':'Quinto Basico',
+    'sexto basico':'Sexto Basico', '6 basico':'Sexto Basico', '6to basico':'Sexto Basico', '6° basico':'Sexto Basico',
+    'septimo basico':'Septimo Basico', '7 basico':'Septimo Basico', '7mo basico':'Septimo Basico', '7° basico':'Septimo Basico',
+    'octavo basico':'Octavo Basico', '8 basico':'Octavo Basico', '8vo basico':'Octavo Basico', '8° basico':'Octavo Basico',
+    'primero medio':'Primero Medio', '1 medio':'Primero Medio', '1ro medio':'Primero Medio', '1° medio':'Primero Medio',
+    'segundo medio':'Segundo Medio', '2 medio':'Segundo Medio', '2do medio':'Segundo Medio', '2° medio':'Segundo Medio',
+    'tercero medio':'Tercero Medio', '3 medio':'Tercero Medio', '3ro medio':'Tercero Medio', '3° medio':'Tercero Medio',
+    'cuarto medio':'Cuarto Medio', '4 medio':'Cuarto Medio', '4to medio':'Cuarto Medio', '4° medio':'Cuarto Medio'
+  };
+  return MAP[s] || s;
+}
+
+async function loadTab(tab) {
+  try {
+    const res = await fetch(csvUrl(tab.gid));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (!rows.length) return [];
+    const headers = Object.keys(rows[0]);
+
+    function stripAccents(s) {
+      return s.toLowerCase()
+        .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
+        .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o')
+        .replace(/[úùü]/g,'u').replace(/ñ/g,'n')
+        .replace(/[^a-z0-9 ]/g,' ').replace(/ +/g,' ').trim();
+    }
+    var normHeaders = headers.map(stripAccents);
+    function findCol(kws) {
+      for (var ki = 0; ki < kws.length; ki++) {
+        var kw = stripAccents(kws[ki]);
+        for (var hi = 0; hi < normHeaders.length; hi++) {
+          if (normHeaders[hi].indexOf(kw) >= 0) return hi;
+        }
+      }
+      return -1;
+    }
+
+    var colegioIdx = findCol(['colegio']);
+    var npsIdx     = findCol(['nps']);
+    var satIdx     = findCol(['satisfaccion general','satisfacci']);
+    var volIdx     = findCol(['volveria a participar','volveria','volver']);
+    var cursoIdx   = findCol(['curso']);
+    var mejoraIdx  = findCol(['como podria mejorar','podria mejorar','mejorar']);
+
+    var dims = DIM_COLS[tab.name] || [];
+    var dimIdxs = dims.map(function(d) { return findCol([d.kw]); });
+
+    function byIdx(row, idx) {
+      if (idx < 0) return '';
+      var vals = Object.values(row);
+      return idx < vals.length ? (vals[idx] || '') : '';
+    }
+
+    return rows.map(function(row) {
+      var dimVals = {};
+      dims.forEach(function(d, i) {
+        var raw = byIdx(row, dimIdxs[i]);
+        if (!raw) return;
+        if (d.type === 'bool') {
+          var s = raw.toLowerCase().trim();
+          if (s === 'sí' || s === 'si' || s === 'yes') dimVals[d.label] = 1;
+          else if (s === 'no') dimVals[d.label] = 0;
+        } else {
+          // avg and pct both store raw 1-5 numeric value; pct aggregation happens in render
+          var n = parseSat(raw);
+          if (n !== null) dimVals[d.label] = n;
+        }
+      });
+      return {
+        instancia: tab.name,
+        color:     tab.color,
+        colegio:   byIdx(row, colegioIdx),
+        nps:       parseNPS(byIdx(row, npsIdx)),
+        sat:       parseSat(byIdx(row, satIdx)),
+        volveria:  parseVolveria(byIdx(row, volIdx)),
+        curso:     (function() {
+          var v = byIdx(row, cursoIdx);
+          if (!v) return '';
+          v = v.trim();
+          // Reject Likert scale values (start with digit + dot)
+          if (/^\d\./.test(v)) return '';
+          // Reject free text (too long, contains commas/semicolons)
+          if (v.length > 40 || v.split(' ').length > 6) return '';
+          if (/[,;]/.test(v)) return '';
+          // Normalize capitalization and accents for consistency
+          return normCurso(v);
+        })(),
+        dims:      dimVals,
+        mejora:    byIdx(row, mejoraIdx)
+      };
+    }).filter(function(r) { return r.colegio; });
+
+  } catch(e) {
+    console.warn('Error cargando', tab.name, e.message);
+    return [];
+  }
+}
+
+function debugDims() {
+  var filtered = getFiltered();
+  var rows2 = [];
+  SAT_TABS.forEach(function(tab) {
+    var tabRows = filtered.filter(function(r){ return r.instancia === tab.name; });
+    if (!tabRows.length) return;
+    var dims = DIM_COLS[tab.name] || [];
+    dims.forEach(function(dim) {
+      var vals = tabRows.map(function(r){ return r.dims[dim.label]; }).filter(function(v){ return v !== undefined && v !== null; });
+      var dist = [1,2,3,4,5].map(function(n){ return vals.filter(function(v){ return v===n; }).length; });
+      var result = vals.length === 0 ? 'Sin datos' :
+        dim.type === 'pct' ? Math.round(vals.filter(function(v){ return v >= 4; }).length / vals.length * 100) + '%' :
+        dim.type === 'bool' ? Math.round(vals.filter(function(v){ return v === 1; }).length / vals.length * 100) + '%' :
+        (vals.reduce(function(s,v){ return s+v; },0)/vals.length).toFixed(2);
+      rows2.push({ inst: tab.name, dim: dim.label, type: dim.type, n: vals.length, total: tabRows.length, d1: dist[0], d2: dist[1], d3: dist[2], d4: dist[3], d5: dist[4], result: result });
+    });
+  });
+  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#25AFC4;color:#fff"><th style="padding:6px 8px;text-align:left">Instancia</th><th style="padding:6px 8px;text-align:left">Dimension</th><th style="padding:6px 8px">Tipo</th><th style="padding:6px 8px">n</th><th style="padding:6px 8px">total</th><th style="padding:6px 8px">1</th><th style="padding:6px 8px">2</th><th style="padding:6px 8px">3</th><th style="padding:6px 8px">4</th><th style="padding:6px 8px">5</th><th style="padding:6px 8px">Resultado</th></tr>';
+  rows2.forEach(function(row, i) {
+    var bg = i % 2 === 0 ? '#fff' : '#f7f7f5';
+    tableHTML += '<tr style="background:' + bg + '"><td style="padding:5px 8px;font-weight:500">' + row.inst + '</td><td style="padding:5px 8px">' + row.dim + '</td><td style="padding:5px 8px;text-align:center">' + row.type + '</td><td style="padding:5px 8px;text-align:center">' + row.n + '</td><td style="padding:5px 8px;text-align:center">' + row.total + '</td>';
+    [row.d1,row.d2,row.d3,row.d4,row.d5].forEach(function(d){ tableHTML += '<td style="padding:5px 8px;text-align:center">' + d + '</td>'; });
+    tableHTML += '<td style="padding:5px 8px;text-align:center;font-weight:600;color:#25AFC4">' + row.result + '</td></tr>';
+  });
+  tableHTML += '</table>';
+  var existing = document.getElementById('debugOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'debugOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-width:960px;width:100%;max-height:80vh;overflow-y:auto';
+  var header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  header.innerHTML = '<strong style="font-size:14px">Debug Dimensiones (filtro activo)</strong>';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = 'X';
+  closeBtn.style.cssText = 'border:none;background:#eee;border-radius:6px;padding:4px 10px;font-size:14px;cursor:pointer';
+  closeBtn.onclick = function(){ overlay.remove(); };
+  header.appendChild(closeBtn);
+  panel.appendChild(header);
+  var content = document.createElement('div');
+  content.innerHTML = tableHTML;
+  panel.appendChild(content);
+  overlay.appendChild(panel);
+  overlay.onclick = function(e){ if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+async function runAI() {
+  const col = document.getElementById('aiColegio') ? document.getElementById('aiColegio').value : '';
+  const inst = document.getElementById('aiInstancia') ? document.getElementById('aiInstancia').value : '';
+  const filtered = getFiltered().filter(function(r) {
+    return (!col || r.colegio === col) && (!inst || r.instancia === inst);
+  });
+  const comments = filtered.map(function(r){ return r.mejora; })
+    .filter(function(c){ return c && c.trim().length > 8; })
+    .map(function(c){ return c.trim(); });
+
+  if (!comments.length) {
+    document.getElementById('aiStrengths').innerHTML = '<span class="ai-placeholder">Sin comentarios para el filtro seleccionado.</span>';
+    document.getElementById('aiImprovements').innerHTML = '<span class="ai-placeholder">Sin comentarios para el filtro seleccionado.</span>';
+    return;
+  }
+
+  const btn = document.querySelector('.ai-btn');
+  btn.disabled = true;
+  btn.textContent = 'Analizando...';
+  document.getElementById('aiStrengths').innerHTML = '<div class="ai-loading">Analizando ' + comments.length + ' comentarios...</div>';
+  document.getElementById('aiImprovements').innerHTML = '<div class="ai-loading">...</div>';
+
+  // ── TOPIC FREQUENCY ANALYSIS ─────────────────────────────────────────────
+  // Define topic clusters with keywords (context-aware)
+  const TOPICS = {
+    mejoras: [
+      { id: 'tiempo',     kws: ['tiempo','hora','duración','durar','extender','más largo','corto'] },
+      { id: 'horario',    kws: ['horario','viernes','mañana','tarde','dia','día','fecha'] },
+      { id: 'practico',   kws: ['práctico','práctica','ejercicio','aplicar','real','caso','ejemplo'] },
+      { id: 'online',     kws: ['online','virtual','zoom','presencial','remoto'] },
+      { id: 'profundidad',kws: ['profund','detalle','más información','más contenido','superficial','poco'] },
+      { id: 'frecuencia', kws: ['frecuencia','más seguido','más veces','más talleres','más encuentros'] },
+      { id: 'dinamico',   kws: ['dinámico','dinámica','entretenido','participativo','aburrido','monótono'] },
+      { id: 'mejorar_rel',kws: ['mejorar la relación','comunicación','diálogo'] },
+    ],
+    fortalezas: [
+      { id: 'excelente',  kws: ['excelente','muy bueno','muy bien','óptimo','perfecto','genial','fantástico'] },
+      { id: 'herramientas',kws: ['herramienta','consejos','útil','práctico','sirve','ayuda'] },
+      { id: 'relator',    kws: ['relator','relatora','profesora','profesor','expositor','facilitador'] },
+      { id: 'contenido',  kws: ['contenido','tema','información','aprendizaje','aprend'] },
+      { id: 'ambiente',   kws: ['ambiente','acogedor','cómodo','confort','espacio'] },
+      { id: 'familia',    kws: ['familia','hijos','hijo','padres','crianza'] },
+      { id: 'recomiendo', kws: ['recomend','comparte','todos deberian','ojalá más'] },
+      { id: 'nada',       kws: ['nada que mejorar','nada más','sin comentarios','está bien','todo bien','todo excelente'] },
+    ]
+  };
+
+  // Score each comment for each topic
+  function scoreComment(text, topicKws) {
+    var tl = text.toLowerCase();
+    return topicKws.reduce(function(s, kw) { return s + (tl.indexOf(kw) >= 0 ? 1 : 0); }, 0);
+  }
+
+  // Strict classifier: only positive if it expresses satisfaction with NO suggestion language
+  function isPrimaryPositive(text) {
+    var tl = text.toLowerCase();
+    // Explicit "nothing to improve" → always positive
+    if (/nada (que|a) mejorar|todo (bien|excelente|bueno|perfecto|correcto)|sin (sugerencia|nada|comentario)|no (hay|tengo) (nada|sugerencia)|está (muy )?(bien|perfecto|excelente)|ningun(a)? (cambio|mejora|sugerencia)/i.test(text)) return true;
+    // Any suggestion language → mejora (even if mixed with positive words)
+    if (/m[aá]s|extender|agregar|incluir|podr[ií](an|a)|sugiero|ser[ií]a bueno|necesita|falt[oó]|falta|aumentar|ampliar|mejor(ar|ando)|cambiar|a[ñn]adir|quiz[aá]s|tal vez|ojal[aá]|quisiera|me gustar[ií]a|se podr[ií]a|ayudar[ií]a|deber[ií]an|hab[ií]a que|propongo|propuesta/i.test(text)) return false;
+    // Only keep as positive if it has clear positive words AND nothing ambiguous
+    var hasClearPositive = /excelente|muy bueno|muy bien|[oó]ptimo|perfecto|genial|fant[aá]stico|incre[ií]ble|maravill|encant[oó]|estuvo bien|bien organizado|muy claro|muy [uú]til|muy din[aá]mico|me gust[oó] mucho|lo recomiendo/i.test(text);
+    return hasClearPositive;
+  }
+
+  // Group comments into positive / improvement
+  var positivos = [];
+  var mejoras = [];
+  comments.forEach(function(c) {
+    if (isPrimaryPositive(c)) positivos.push(c);
+    else mejoras.push(c);
+  });
+
+  // Find most representative comments per topic
+  function topPerTopic(commentList, topicList, maxPerTopic, maxTotal) {
+    var used = new Set();
+    var results = [];
+    topicList.forEach(function(topic) {
+      if (results.length >= maxTotal) return;
+      var best = null, bestScore = 0;
+      commentList.forEach(function(c) {
+        if (used.has(c)) return;
+        var s = scoreComment(c, topic.kws);
+        if (s > bestScore || (s === bestScore && best && c.length < best.length)) {
+          bestScore = s; best = c;
+        }
+      });
+      if (best && bestScore > 0) {
+        used.add(best);
+        results.push(best);
+      }
+    });
+    // Fill remaining slots with shortest unselected comments (most concise = clearest)
+    commentList.forEach(function(c) {
+      if (results.length >= maxTotal) return;
+      if (!used.has(c) && c.length < 120) {
+        used.add(c);
+        results.push(c);
+      }
+    });
+    return results.slice(0, maxTotal);
+  }
+
+  var topPos = topPerTopic(positivos, TOPICS.fortalezas, 2, 5);
+  var topMej = topPerTopic(mejoras, TOPICS.mejoras, 2, 5);
+
+  // Fallback if one side is empty
+  if (!topPos.length) topPos = ['No se identificaron comentarios positivos en esta muestra.'];
+  if (!topMej.length) topMej = ['No se identificaron oportunidades de mejora en esta muestra.'];
+
+  // Add count info
+  var posLabel = positivos.length > 0 ? ' <small style="font-weight:400;opacity:.6">(' + positivos.length + ' comentarios positivos)</small>' : '';
+  var mejLabel = mejoras.length > 0 ? ' <small style="font-weight:400;opacity:.6">(' + mejoras.length + ' sugerencias)</small>' : '';
+
+  document.querySelector('.ai-col.strengths .ai-col-title').innerHTML = '&#x2705; FORTALEZAS DESTACADAS' + posLabel;
+  document.querySelector('.ai-col.improvements .ai-col-title').innerHTML = '&#x1F527; OPORTUNIDADES DE MEJORA' + mejLabel;
+
+  document.getElementById('aiStrengths').innerHTML =
+    topPos.map(function(f){ return '<div class="ai-item">' + f + '</div>'; }).join('');
+  document.getElementById('aiImprovements').innerHTML =
+    topMej.map(function(m){ return '<div class="ai-item">' + m + '</div>'; }).join('');
+
+  btn.disabled = false;
+  btn.innerHTML = '&#x2728; Analizar comentarios';
+}
+
+async function loadAll() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="loading-wrap">
+      <p>Cargando las 5 encuestas desde Google Sheets...</p>
+      <div class="spinner"><span></span><span></span><span></span></div>
+    </div>`;
+  destroyAll();
+  const results = await Promise.allSettled(SAT_TABS.map(loadTab));
+  allRows = results.flatMap(r => r.status==='fulfilled' ? r.value : []).filter(r => r.colegio);
+  if (!allRows.length) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="error-wrap">
+        <strong>No se pudieron cargar los datos</strong>
+        El archivo HTML necesita acceso a Google Sheets. Asegúrate de que:<br>
+        1. El Sheet tiene acceso público ("Cualquier persona con el enlace puede ver")<br>
+        2. Estás abriendo este archivo en un navegador con conexión a internet<br>
+        3. No hay bloqueadores de contenido activos para docs.google.com
+      </div>`;
+    return;
+  }
+  // Build whitelist: keep only colegios that appear >= 2 times across all tabs
+  // (real schools appear many times; stray text values appear once)
+  const colegioCount = {};
+  allRows.forEach(function(r) {
+    colegioCount[r.colegio] = (colegioCount[r.colegio] || 0) + 1;
+  });
+  allRows = allRows.filter(function(r) {
+    return colegioCount[r.colegio] >= 3;
+  });
+  document.getElementById('updateTime').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  populateFilters();
+  render();
+}
+
+const CURSO_ORDER = [
+  'Pre Kinder','Kinder',
+  'Primero Basico','Segundo Basico','Tercero Basico','Cuarto Basico',
+  'Quinto Basico','Sexto Basico','Septimo Basico','Octavo Basico',
+  'Primero Medio','Segundo Medio','Tercero Medio','Cuarto Medio'
+];
+function sortCursos(cursos) {
+  return cursos.slice().sort(function(a, b) {
+    var ia = CURSO_ORDER.indexOf(a);
+    var ib = CURSO_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b, 'es');
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+function populateFilters() {
+  // Colegios — multi-select checkboxes
+  const colegios = [...new Set(allRows.map(r=>r.colegio).filter(Boolean))].sort();
+  const list = document.getElementById('ms-list');
+  list.innerHTML = '';
+  colegios.forEach(c => {
+    const lbl = document.createElement('label');
+    lbl.className = 'ms-item';
+    lbl.innerHTML = '<input type="checkbox" value="' + c.replace(/"/g,'&quot;') + '" onchange="updateColegioLabel();"> ' + c;
+    list.appendChild(lbl);
+  });
+  document.getElementById('ms-all').checked = true;
+
+  const set = (id, vals) => {
+    const el = document.getElementById(id);
+    const cur = el.value;
+    while (el.options.length > 1) el.remove(1);
+    vals.forEach(v => { if (!v) return; const o = document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
+    if (vals.includes(cur)) el.value = cur;
+  };
+  set('fInstancia', [...new Set(allRows.map(r=>r.instancia).filter(Boolean))].sort());
+  set('fCurso', sortCursos([...new Set(allRows.map(r=>r.curso).filter(Boolean))]).filter(Boolean));
+  ['fInstancia','fCurso'].forEach(id => document.getElementById(id).onchange = render);
+}
+
+function toggleColegioMenu(e) {
+  const menu = document.getElementById('colegioMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  e.stopPropagation();
+}
+
+function applyColegioFilter() {
+  document.getElementById('colegioMenu').style.display = 'none';
+  render();
+}
+
+document.addEventListener('click', function(e) {
+  var dropdown = document.getElementById('colegioDropdown');
+  var menu = document.getElementById('colegioMenu');
+  if (menu && dropdown && !dropdown.parentElement.contains(e.target)) {
+    if (menu.style.display !== 'none') {
+      menu.style.display = 'none';
+      render();
+    }
+  }
+});
+
+function toggleAll(cb) {
+  document.querySelectorAll('#ms-list input[type=checkbox]').forEach(c => c.checked = cb.checked);
+  updateColegioLabel();
+}
+
+function getSelectedColegios() {
+  const checked = [...document.querySelectorAll('#ms-list input[type=checkbox]:checked')].map(c => c.value);
+  const all = [...document.querySelectorAll('#ms-list input[type=checkbox]')];
+  return checked.length === all.length ? [] : checked; // empty = all selected
+}
+
+function updateColegioLabel() {
+  const checked = [...document.querySelectorAll('#ms-list input[type=checkbox]:checked')];
+  const all = [...document.querySelectorAll('#ms-list input[type=checkbox]')];
+  const allCb = document.getElementById('ms-all');
+  if (checked.length === 0) {
+    allCb.checked = false;
+    allCb.indeterminate = false;
+    document.getElementById('colegioLabel').textContent = 'Sin selección';
+  } else if (checked.length === all.length) {
+    allCb.checked = true;
+    allCb.indeterminate = false;
+    document.getElementById('colegioLabel').textContent = 'Todos los colegios';
+  } else {
+    allCb.checked = false;
+    allCb.indeterminate = true;
+    document.getElementById('colegioLabel').textContent = checked.length === 1
+      ? checked[0].value
+      : checked.length + ' colegios';
+  }
+}
+
+function resetFilters() {
+  document.querySelectorAll('#ms-list input[type=checkbox]').forEach(c => c.checked = true);
+  document.getElementById('ms-all').checked = true;
+  updateColegioLabel();
+  ['fInstancia','fCurso'].forEach(id => document.getElementById(id).value='');
+  render();
+}
+
+function getFiltered() {
+  const selectedColegios = getSelectedColegios();
+  const inst = document.getElementById('fInstancia').value;
+  const cur = document.getElementById('fCurso').value;
+  return allRows.filter(r =>
+    (selectedColegios.length === 0 || selectedColegios.includes(r.colegio)) &&
+    (!inst || r.instancia === inst) &&
+    (!cur  || r.curso === cur)
+  );
+}
+
+function calcNPS(rows) {
+  const v = rows.filter(r=>r.nps!==null);
+  if (!v.length) return {nps:null,pPct:0,nPct:0,dPct:0,n:0};
+  const p=v.filter(r=>r.nps>=9).length, ne=v.filter(r=>r.nps>=7&&r.nps<=8).length, d=v.filter(r=>r.nps<=6).length;
+  return {nps:Math.round((p-d)/v.length*100), pPct:Math.round(p/v.length*100), nPct:Math.round(ne/v.length*100), dPct:Math.round(d/v.length*100), n:v.length};
+}
+function calcSat(rows) { const v=rows.filter(r=>r.sat!==null); return v.length ? v.reduce((s,r)=>s+r.sat,0)/v.length : null; }
+function calcVol(rows) {
+  var answered = rows.filter(function(r){ return r.volveria !== null; });
+  if (!answered.length) return null;
+  return answered.filter(function(r){ return r.volveria === true; }).length / answered.length * 100;
+}
+
+function npsColor(n) {
+  if (n===null) return '#999';
+  if (n>=75) return '#25AFC4';   // Excepcional
+  if (n>=60) return '#93C049';   // Excelente
+  if (n>=30) return '#F28E35';   // Bueno
+  return '#D8162D';              // Por mejorar
+}
+function npsLabel(n) {
+  if (n===null) return 'Sin datos';
+  if (n>=75) return 'Excepcional';
+  if (n>=60) return 'Excelente';
+  if (n>=30) return 'Bueno';
+  return 'Por mejorar';
+}
+function pillCls(n) {
+  if (n===null) return 'pill';
+  if (n>=75) return 'pill pill-c';   // calipso = Excepcional
+  if (n>=60) return 'pill pill-g';   // verde = Excelente
+  if (n>=30) return 'pill pill-a';   // naranjo = Bueno
+  return 'pill pill-r';              // rojo = Por mejorar
+}
+
+function destroyAll() { Object.keys(charts).forEach(id=>{try{charts[id].destroy();}catch(e){}delete charts[id];}); }
+function mkChart(id,type,data,opts) {
+  const el=document.getElementById(id); if(!el)return;
+  if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];}
+  charts[id]=new Chart(el,{type,data,options:opts});
+}
+
+function render() {
+  destroyAll();
+  const rows = getFiltered();
+  if (!rows.length) {
+    document.getElementById('mainContent').innerHTML = '<div class="loading-wrap"><p>Sin datos para los filtros seleccionados.</p></div>';
+    return;
+  }
+
+  const g = calcNPS(rows), sat = calcSat(rows), vol = calcVol(rows);
+  const byInst = {};
+  SAT_TABS.forEach(t => {
+    const r = rows.filter(x=>x.instancia===t.name);
+    if (r.length) byInst[t.name] = {...calcNPS(r), sat:calcSat(r), vol:calcVol(r), color:t.color, n:r.length};
+  });
+  const instKeys = Object.keys(byInst);
+  const schoolSet = [...new Set(rows.map(r=>r.colegio).filter(Boolean))].sort();
+  const bySchool = {};
+  schoolSet.forEach(c => { const r=rows.filter(x=>x.colegio===c); bySchool[c]={...calcNPS(r),sat:calcSat(r),vol:calcVol(r),n:r.length}; });
+  const hInst = Math.max(120, instKeys.length*50+40);
+  const hSchool = Math.max(120, schoolSet.length*50+40);
+
+  // ── BUILD COURSE TABLE HTML ────────────────────────────────────────────────
+  const cursoSet = sortCursos([...new Set(rows.map(r=>r.curso).filter(Boolean))]);
+  let cursoTableHtml = '';
+  if (cursoSet.length >= 1) {
+    const byCurso = {};
+    cursoSet.forEach(c => {
+      const r = rows.filter(x=>x.curso===c);
+      byCurso[c] = {...calcNPS(r), sat:calcSat(r), vol:calcVol(r), n:r.length};
+    });
+    const hCurso = Math.max(100, cursoSet.length*44+40);
+    cursoTableHtml = `
+    <div class="section-title">Por curso</div>
+    <div class="card" style="margin-bottom:16px">
+      <table class="school-table">
+        <thead><tr><th>Curso</th><th>NPS</th><th>Categoría</th><th>Sat. gral.</th><th>Volvería</th><th>Resp.</th></tr></thead>
+        <tbody>
+          ${cursoSet.map(c=>{const d=byCurso[c];return`
+            <tr>
+              <td style="font-weight:500">${c}</td>
+              <td style="color:${npsColor(d.nps)};font-weight:600">${d.nps!==null?d.nps:'—'}</td>
+              <td><span class="${pillCls(d.nps)}">${npsLabel(d.nps)}</span></td>
+              <td>${d.sat!==null?d.sat.toFixed(1)+' / 5':'—'}</td>
+              <td>${d.vol!==null?Math.round(d.vol)+'%':'—'}</td>
+              <td style="color:#999">${d.n}</td>
+            </tr>`;}).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── BUILD DIMS HTML ──────────────────────────────────────────────────────
+  let dimsHtml = '';
+  const instWithDims = instKeys.filter(k => DIM_COLS[k] && DIM_COLS[k].length > 0);
+  if (instWithDims.length > 0) {
+    dimsHtml = '<div class="section-title" style="margin-top:4px">Dimensiones espec\u00edficas por instancia</div><div class="dims-grid">';
+    instWithDims.forEach(instName => {
+      const instRows = rows.filter(r => r.instancia === instName);
+      const dims = DIM_COLS[instName] || [];
+      const tabInfo = SAT_TABS.find(t => t.name === instName);
+      const color = tabInfo ? tabInfo.color : '#888';
+      let dimRowsHtml = '';
+      dims.forEach(dim => {
+        const vals = instRows.map(r => r.dims[dim.label]).filter(v => v !== undefined && v !== null);
+        if (!vals.length) return;
+        let display, barPct;
+        if (dim.type === 'bool') {
+          const pct = Math.round(vals.filter(v => v===1).length / vals.length * 100);
+          display = pct + '%'; barPct = pct;
+        } else if (dim.type === 'pct') {
+          const pct = Math.round(vals.filter(v => v >= 4).length / vals.length * 100);
+          display = pct + '%'; barPct = pct;
+        } else {
+          const avg = vals.reduce((s,v)=>s+v,0)/vals.length;
+          display = avg.toFixed(1); barPct = avg/5*100;
+        }
+        dimRowsHtml += '<div class="dim-row"><span class="dim-label">'+dim.label+'</span><div class="dim-bar-wrap"><div class="dim-bar" style="width:'+barPct.toFixed(1)+'%;background:'+color+'"></div></div><span class="dim-val">'+display+'</span></div>';
+      });
+      if (dimRowsHtml) dimsHtml += '<div class="dim-section"><div class="dim-title" style="color:'+color+'">'+instName.toUpperCase()+'</div>'+dimRowsHtml+'</div>';
+    });
+    dimsHtml += '</div>';
+  }
+
+  // ── BUILD AI SECTION HTML ────────────────────────────────────────────────
+  const instOpts = '<option value="">Todas las instancias</option>'+instKeys.map(k=>'<option value="'+k+'">'+k+'</option>').join('');
+  const aiColegioOpts = '<option value="">Todos los colegios</option>'+schoolSet.map(c=>'<option value="'+c.replace(/"/g,'&quot;')+'">'+c+'</option>').join('');
+  const aiHtml = '<div class="ai-section"><div class="ai-header"><h3>&#x1F4AC; Análisis de Comentarios</h3><div class="ai-controls"><select id="aiColegio">'+aiColegioOpts+'</select><select id="aiInstancia">'+instOpts+'</select><button class="btn" onclick="debugDims()" style="font-size:11px;padding:4px 10px">Debug</button><button class="ai-btn" onclick="runAI()">&#x2728; Analizar</button></div></div><div class="ai-cols"><div class="ai-col strengths"><div class="ai-col-title">&#x2705; FORTALEZAS DESTACADAS</div><div id="aiStrengths" class="ai-placeholder">Selecciona filtros y presiona Analizar</div></div><div class="ai-col improvements"><div class="ai-col-title">&#x1F527; OPORTUNIDADES DE MEJORA</div><div id="aiImprovements" class="ai-placeholder">Selecciona filtros y presiona Analizar</div></div></div></div>';
+
+  // ── RENDER ALL HTML ──────────────────────────────────────────────────────
+  document.getElementById('mainContent').innerHTML = `
+    <div class="section-title">Indicadores generales</div>
+    <div class="kpi-grid">
+      <div class="kpi accent">
+        <div class="lbl">NPS general</div>
+        <div class="val" style="color:${npsColor(g.nps)}">${g.nps!==null?g.nps:'—'}</div>
+        <div class="sub">${npsLabel(g.nps)} · ${g.n} respuestas con NPS</div>
+        <div class="nps-bar"><div class="b-p" style="width:${g.pPct}%"></div><div class="b-n" style="width:${g.nPct}%"></div><div class="b-d" style="width:${g.dPct}%"></div></div>
+        <div class="nps-legend">
+          <span style="color:#93C049">▮ Promotores ${g.pPct}%</span>
+          <span style="color:#F28E35">▮ Neutros ${g.nPct}%</span>
+          <span style="color:#D8162D">▮ Detractores ${g.dPct}%</span>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Satisfacci\u00f3n general</div>
+        <div class="val">${sat!==null?sat.toFixed(1):'—'}<span style="font-size:14px;color:#999;font-weight:400"> / 5</span></div>
+        <div class="sub">${sat!==null?Math.round(sat/5*100)+'% del m\u00e1ximo posible':'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Volver\u00eda a participar</div>
+        <div class="val">${vol!==null?Math.round(vol)+'%':'—'}</div>
+        <div class="sub">${vol!==null?'de los encuestados':'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Total respuestas</div>
+        <div class="val">${rows.length}</div>
+        <div class="sub">${instKeys.length} instancias · ${schoolSet.length} colegios</div>
+      </div>
+    </div>
+
+    <div class="section-title">Por instancia</div>
+    <div class="inst-grid">
+      ${instKeys.map(name=>{const d=byInst[name];return`
+        <div class="inst-card">
+          <div class="inst-header"><span class="inst-dot" style="background:${d.color}"></span>${name}</div>
+          <div class="inst-nps" style="color:${npsColor(d.nps)}">${d.nps!==null?d.nps:'—'} <span style="font-size:13px;font-weight:400;color:#999">NPS</span></div>
+          <div class="inst-sub" style="margin-top:4px">Sat. ${d.sat!==null?d.sat.toFixed(1):'—'}/5 · Volver\u00eda ${d.vol!==null?Math.round(d.vol)+'%':'—'}</div>
+          <div class="inst-sub">${d.n} respuestas</div>
+          <div class="nps-bar" style="margin-top:8px">
+            <div class="b-p" style="width:${d.pPct}%"></div>
+            <div class="b-n" style="width:${d.nPct}%"></div>
+            <div class="b-d" style="width:${d.dPct}%"></div>
+          </div>
+          <div class="nps-legend" style="margin-top:4px">
+            <span style="color:#93C049">${d.pPct}% prom.</span>
+            <span style="color:#F28E35">${d.nPct}% neu.</span>
+            <span style="color:#D8162D">${d.dPct}% det.</span>
+          </div>
+        </div>`;}).join('')}
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <h3>Composici\u00f3n NPS por instancia</h3>
+        <div class="legend">
+          <span><span class="sq" style="background:#93C049"></span>Promotores (9-10)</span>
+          <span><span class="sq" style="background:#F28E35"></span>Neutros (7-8)</span>
+          <span><span class="sq" style="background:#D8162D"></span>Detractores (0-6)</span>
+        </div>
+        <div style="position:relative;height:${hInst}px"><canvas id="cNPSInst" role="img" aria-label="NPS por instancia"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Satisfacci\u00f3n media por instancia</h3>
+        <div class="legend"><span><span class="sq" style="background:#D8162D"></span>Escala 1\u20135</span></div>
+        <div style="position:relative;height:${hInst}px"><canvas id="cSatInst" role="img" aria-label="Satisfacci\u00f3n por instancia"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-title">Por colegio</div>
+    <div class="card" style="margin-bottom:16px">
+      <table class="school-table">
+        <thead><tr><th>Colegio</th><th>NPS</th><th>Categor\u00eda</th><th>Sat. gral.</th><th>Volver\u00eda</th><th>Resp.</th></tr></thead>
+        <tbody>
+          ${schoolSet.map(c=>{const d=bySchool[c];return`
+            <tr>
+              <td style="font-weight:500">${c}</td>
+              <td style="color:${npsColor(d.nps)};font-weight:600">${d.nps!==null?d.nps:'—'}</td>
+              <td><span class="${pillCls(d.nps)}">${npsLabel(d.nps)}</span></td>
+              <td>${d.sat!==null?d.sat.toFixed(1)+' / 5':'—'}</td>
+              <td>${d.vol!==null?Math.round(d.vol)+'%':'—'}</td>
+              <td style="color:#999">${d.n}</td>
+            </tr>`;}).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    
+  ` + cursoTableHtml + dimsHtml + aiHtml;
+
+  mkChart('cNPSInst','bar',{
+    labels: instKeys,
+    datasets: [
+      {label:'Promotores',  data:instKeys.map(k=>byInst[k].pPct), backgroundColor:'#93C049'},
+      {label:'Neutros',     data:instKeys.map(k=>byInst[k].nPct), backgroundColor:'#F28E35'},
+      {label:'Detractores', data:instKeys.map(k=>byInst[k].dPct), backgroundColor:'#D8162D'}
+    ]
+  },{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{stacked:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true}}
+  });
+
+  mkChart('cSatInst','bar',{
+    labels: instKeys,
+    datasets:[{label:'Satisfacci\u00f3n media', data:instKeys.map(k=>byInst[k].sat!==null?parseFloat(byInst[k].sat.toFixed(2)):null), backgroundColor:instKeys.map(k=>byInst[k].color)}]
+  },{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{min:0,max:5},y:{}}
+  });
+
+}
+
+loadAll();
+</script>
+</body>
+</html>
