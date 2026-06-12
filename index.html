@@ -664,11 +664,23 @@ async function loadAll() {
       <div class="spinner"><span></span><span></span><span></span></div>
     </div>`;
   destroyAll();
-  const [results] = await Promise.all([
-    Promise.allSettled(SAT_TABS.map(loadTab)),
-    loadAsistencia()
-  ]);
-  allRows = results.flatMap(r => r.status==='fulfilled' ? r.value : []).filter(r => r.colegio);
+  let results;
+  try {
+    const allResults = await Promise.all([
+      Promise.allSettled(SAT_TABS.map(loadTab)),
+      loadAsistencia()
+    ]);
+    results = allResults[0];
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error al cargar datos</strong><br>' + e.message + '</div>';
+    return;
+  }
+  try {
+    allRows = results.flatMap(r => r.status==='fulfilled' ? r.value : []).filter(r => r.colegio);
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error procesando datos</strong><br>' + e.message + '</div>';
+    return;
+  }
   if (!allRows.length) {
     document.getElementById('mainContent').innerHTML = `
       <div class="error-wrap">
@@ -690,8 +702,17 @@ async function loadAll() {
     return colegioCount[r.colegio] >= 3;
   });
   document.getElementById('updateTime').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
-  populateFilters();
-  render();
+  try {
+    populateFilters();
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error en populateFilters</strong><br>' + e.message + '</div>';
+    return;
+  }
+  try {
+    render();
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error en render</strong><br>' + e.message + '</div>';
+  }
 }
 
 const CURSO_ORDER = [
