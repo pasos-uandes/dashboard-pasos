@@ -234,7 +234,7 @@ async function loadAsistencia() {
         esperada:  isNaN(esp) ? null : esp,
         real:      isNaN(real) ? null : real
       };
-    }).filter(function(r){ return r.colegio && r.instancia && r.instancia !== 'Formación de profesores PASOS (incluye coordinadores)'; });
+    }).filter(function(r){ return r.colegio && r.instancia && r.instancia !== 'Formación de profesores PASOS (incluye coordinadores)' && r.instancia !== 'Formación de profesores PASOS (TRANSFERENCIAS incluye coordinadores)'; });
   } catch(e) {
     console.warn('Error loading asistencia:', e.message);
   }
