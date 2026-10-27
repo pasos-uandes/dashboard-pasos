@@ -142,6 +142,11 @@
   .tab { font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); cursor: pointer; transition: all 0.15s; font-family: inherit; }
   .tab.active { background: #25AFC4; color: #fff; border-color: transparent; font-weight: 500; }
   .divider { height: 0.5px; background: var(--border); margin: 24px 0; }
+  .quote-list { max-height: 360px; overflow-y: auto; }
+  .quote-item { font-size: 13px; line-height: 1.5; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .quote-item:last-child { border-bottom: none; }
+  .quote-tag { display: inline-block; font-size: 10px; font-weight: 500; padding: 1px 8px; border-radius: 20px; background: #e0f6f9; color: #0e7a8a; margin-right: 6px; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) { .quote-tag { background: #0e2e33; color: #4dd4e8; } }
 </style>
 </head>
 <body>
@@ -184,7 +189,6 @@
       <select id="fCurso"><option value="">Todos los cursos</option></select>
     </div>
     <button class="btn" onclick="resetFilters()">↺ Limpiar filtros</button>
-    <button class="btn primary" onclick="loadAll()">⟳ Actualizar datos</button>
   </div>
 
   <div id="mainContent">
@@ -239,6 +243,81 @@ async function loadAsistencia() {
     console.warn('Error loading asistencia:', e.message);
   }
   return [];
+}
+
+// ── FORMACIÓN PROFESORES PASOS (sub-ítem de Cursos docentes) ─────────────────
+const FORM_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIboG7Posa0nQjhPl1upVUSirPPSdPphM_f16MbwJ3dwV-qxVbJ4qfWLyGNpDh4TVIrQpUGhrWZZJw/pub?gid=497298818&single=true&output=csv';
+const FORM_SUB = 'Formación Profesores PASOS';
+const FORM_SUB_KEY = 'SUB:' + FORM_SUB;
+
+// CSV parser that handles quoted fields containing commas, quotes and line breaks
+function parseCSVFull(text) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i++; } else { inQ = false; }
+      } else { cur += ch; }
+    } else if (ch === '"') {
+      inQ = true;
+    } else if (ch === ',') {
+      row.push(cur); cur = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cur); cur = ''; rows.push(row); row = [];
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(function(r) { return r.some(function(v) { return v.trim() !== ''; }); });
+}
+
+async function loadFormacion() {
+  try {
+    const res = await fetch(FORM_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = (await res.text()).replace(/^﻿/, '');
+    const table = parseCSVFull(text);
+    if (table.length < 2) return [];
+    const norm = function(s) {
+      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .replace(/[^a-z0-9 ]/g, ' ').replace(/ +/g, ' ').trim();
+    };
+    const heads = table[0].map(norm);
+    const col = function(kw) { return heads.findIndex(function(h) { return h.indexOf(kw) >= 0; }); };
+    const iCol   = col('colegio');
+    const iSat   = col('satisfecho');
+    const iTemas = col('temas tratados son importantes');
+    const iClar  = col('transmitieron con claridad');
+    const iOtros = col('otros temas');
+    const iCom   = col('comentarios generales');
+    return table.slice(1).map(function(r) {
+      const g = function(i) { return (i >= 0 && r[i] !== undefined) ? r[i].trim() : ''; };
+      const dims = {};
+      const t = parseSat(g(iTemas)); if (t !== null) dims['Temas relevantes'] = t;
+      const c = parseSat(g(iClar));  if (c !== null) dims['Claridad relator'] = c;
+      return {
+        instancia: 'Cursos docentes',
+        color: '#D8162D',
+        colegio: g(iCol),
+        nps: null,
+        sat: parseSat(g(iSat)),
+        volveria: null,
+        curso: '',
+        dims: dims,
+        mejora: g(iCom),
+        instanciaSub: FORM_SUB,
+        temas: g(iOtros),
+        comentario: g(iCom)
+      };
+    }).filter(function(r) { return r.colegio; });
+  } catch (e) {
+    console.warn('Error cargando ' + FORM_SUB + ':', e.message);
+    return [];
+  }
 }
 
 function getAsist(colegio, instancia) {
@@ -664,19 +743,22 @@ async function loadAll() {
       <div class="spinner"><span></span><span></span><span></span></div>
     </div>`;
   destroyAll();
-  let results;
+  let results, formRows = [];
   try {
     const allResults = await Promise.all([
       Promise.allSettled(SAT_TABS.map(loadTab)),
-      loadAsistencia()
+      loadAsistencia(),
+      loadFormacion()
     ]);
     results = allResults[0];
+    formRows = allResults[2] || [];
   } catch(e) {
     document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error al cargar datos</strong><br>' + e.message + '</div>';
     return;
   }
   try {
     allRows = results.flatMap(r => r.status==='fulfilled' ? r.value : []).filter(r => r.colegio);
+    allRows = allRows.concat(formRows);
   } catch(e) {
     document.getElementById('mainContent').innerHTML = '<div class="error-wrap"><strong>Error procesando datos</strong><br>' + e.message + '</div>';
     return;
@@ -955,6 +1037,123 @@ function mkChart(id,type,data,opts) {
   charts[id]=new Chart(el,{type,data,options:opts});
 }
 
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function avgOf(vals) { return vals.length ? vals.reduce(function(s,v){ return s+v; },0)/vals.length : null; }
+function pctHigh(vals) { return vals.length ? Math.round(vals.filter(function(v){ return v >= 4; }).length / vals.length * 100) : null; }
+function fmtAvg(v) { return v !== null ? v.toFixed(1) + ' / 5' : '—'; }
+
+// Dedicated view for the "Formación Profesores PASOS" sub-item
+function renderFormacion(rows) {
+  const satVals   = rows.filter(function(r){ return r.sat !== null; }).map(function(r){ return r.sat; });
+  const temasVals = rows.map(function(r){ return r.dims['Temas relevantes']; }).filter(function(v){ return v !== undefined; });
+  const clarVals  = rows.map(function(r){ return r.dims['Claridad relator']; }).filter(function(v){ return v !== undefined; });
+  const schools = [...new Set(rows.map(function(r){ return r.colegio; }))].sort();
+
+  const bySchool = schools.map(function(c) {
+    const r = rows.filter(function(x){ return x.colegio === c; });
+    return {
+      colegio: c, n: r.length,
+      sat:   avgOf(r.filter(function(x){ return x.sat !== null; }).map(function(x){ return x.sat; })),
+      temas: avgOf(r.map(function(x){ return x.dims['Temas relevantes']; }).filter(function(v){ return v !== undefined; })),
+      clar:  avgOf(r.map(function(x){ return x.dims['Claridad relator']; }).filter(function(v){ return v !== undefined; }))
+    };
+  });
+
+  function quoteList(field, emptyMsg) {
+    const items = rows.filter(function(r) {
+      const t = (r[field] || '').trim();
+      return t.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length >= 3;
+    });
+    if (!items.length) return '<div class="ai-placeholder">' + emptyMsg + '</div>';
+    return '<div class="quote-list">' + items.map(function(r) {
+      return '<div class="quote-item"><span class="quote-tag">' + escHtml(r.colegio) + '</span>' + escHtml(r[field].trim()) + '</div>';
+    }).join('') + '</div>';
+  }
+
+  const hSchool = Math.max(160, schools.length * 78 + 60);
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="section-title">Cursos docentes · ${escHtml(FORM_SUB)}</div>
+    <div class="kpi-grid">
+      <div class="kpi accent">
+        <div class="lbl">Satisfacción con el ciclo de formación</div>
+        <div class="val" style="color:#D8162D">${satVals.length ? avgOf(satVals).toFixed(1) : '—'}<span style="font-size:14px;color:#999;font-weight:400"> / 5</span></div>
+        <div class="sub">${satVals.length ? pctHigh(satVals) + '% responde 4 o 5' : 'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Temas importantes para mi desarrollo</div>
+        <div class="val">${temasVals.length ? avgOf(temasVals).toFixed(1) : '—'}<span style="font-size:14px;color:#999;font-weight:400"> / 5</span></div>
+        <div class="sub">${temasVals.length ? pctHigh(temasVals) + '% responde 4 o 5' : 'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Claridad de los relatores</div>
+        <div class="val">${clarVals.length ? avgOf(clarVals).toFixed(1) : '—'}<span style="font-size:14px;color:#999;font-weight:400"> / 5</span></div>
+        <div class="sub">${clarVals.length ? pctHigh(clarVals) + '% responde 4 o 5' : 'Sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">Total respuestas</div>
+        <div class="val">${rows.length}</div>
+        <div class="sub">${schools.length} colegios</div>
+      </div>
+    </div>
+
+    <div class="section-title">Por colegio</div>
+    <div class="charts-row">
+      <div class="card">
+        <h3>Promedio por pregunta y colegio</h3>
+        <div class="legend">
+          <span><span class="sq" style="background:#D8162D"></span>Satisfacción general</span>
+          <span><span class="sq" style="background:#25AFC4"></span>Temas importantes</span>
+          <span><span class="sq" style="background:#93C049"></span>Claridad relatores</span>
+        </div>
+        <div style="position:relative;height:${hSchool}px"><canvas id="cFormSchool" role="img" aria-label="Promedio por pregunta y colegio"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Detalle por colegio</h3>
+        <table class="school-table">
+          <thead><tr><th>Colegio</th><th>Satisfacción</th><th>Temas</th><th>Claridad</th><th>Resp.</th></tr></thead>
+          <tbody>
+            ${bySchool.map(function(d){ return `
+              <tr>
+                <td style="font-weight:500">${escHtml(d.colegio)}</td>
+                <td>${fmtAvg(d.sat)}</td>
+                <td>${fmtAvg(d.temas)}</td>
+                <td>${fmtAvg(d.clar)}</td>
+                <td style="color:#999">${d.n}</td>
+              </tr>`; }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <h3>Temas que les gustaría trabajar o profundizar</h3>
+        ${quoteList('temas', 'Sin respuestas para el filtro seleccionado.')}
+      </div>
+      <div class="card">
+        <h3>Comentarios generales</h3>
+        ${quoteList('comentario', 'Sin comentarios para el filtro seleccionado.')}
+      </div>
+    </div>
+  `;
+
+  mkChart('cFormSchool', 'bar', {
+    labels: bySchool.map(function(d){ return d.colegio; }),
+    datasets: [
+      { label: 'Satisfacción general', data: bySchool.map(function(d){ return d.sat   !== null ? parseFloat(d.sat.toFixed(2))   : null; }), backgroundColor: '#D8162D' },
+      { label: 'Temas importantes',    data: bySchool.map(function(d){ return d.temas !== null ? parseFloat(d.temas.toFixed(2)) : null; }), backgroundColor: '#25AFC4' },
+      { label: 'Claridad relatores',   data: bySchool.map(function(d){ return d.clar  !== null ? parseFloat(d.clar.toFixed(2))  : null; }), backgroundColor: '#93C049' }
+    ]
+  }, {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { min: 0, max: 5 }, y: {} }
+  });
+}
+
 function render() {
   destroyAll();
   const rows = getFiltered();
@@ -962,6 +1161,7 @@ function render() {
     document.getElementById('mainContent').innerHTML = '<div class="loading-wrap"><p>Sin datos para los filtros seleccionados.</p></div>';
     return;
   }
+  if (currentInstancia === FORM_SUB_KEY) { renderFormacion(rows); return; }
 
   const g = calcNPS(rows), sat = calcSat(rows), vol = calcVol(rows);
   const byInst = {};
